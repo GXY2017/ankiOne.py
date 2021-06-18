@@ -3,6 +3,7 @@ import numpy as np
 import os
 import re
 import requests
+import json
 from PyDictionary import PyDictionary as pydict
 import nltk
 # nltk.download()  # download to C:\..
@@ -14,18 +15,9 @@ from nltk.corpus import names
 
 spell = SpellChecker(distance=1)
 
-
-def stripword(word):
-    """
-    去除整个字符串中非字母和数字的部分，并将字母转为小写
-    :param word:
-    :return:
-    """
-    return (''.join([n for n in word if n.isalnum()])).lower()
-
-
-#textUrl = r"C:\Users\gxy49\Downloads\Philosophers_Stone.txt"
-textUrl = r'C:\Users\XIYU.GONG\Downloads\Harry-Potter-and-the-Philosopher_s-Stone.txt'
+# textUrl = r"C:\Users\gxy49\Downloads\Philosophers_Stone.txt"
+# textUrl = r'C:\Users\XIYU.GONG\Downloads\Bill-Gates-How-to-Avoid-a-Climate-Disaster_-The-Solutions-We-Have-and-the-Breakthroughs-We-Need-Knop.txt'
+textUrl = r'C:\Users\gxy49\Downloads\Philosophers_Stone.txt'
 
 # 导入完整的英语词汇表
 words = set(nltk.corpus.words.words())
@@ -42,8 +34,8 @@ with open(textUrl, "r", encoding='utf-8') as f:
     text = re.sub(re.compile(r"\s+"), " ", text)  # 剔除各种空格符号，[\r\n\t\f\v]
     text = re.sub(re.compile(r'\\x[0123456789abcdef]+'), " ", text)  # 剔除16进制字条
     text = re.sub(re.compile(r"-\s+"), "-", text)  # 剔除各种空格符号，[\r\n\t\f\v]
-    text = text.replace('-',"") # remove hyphen in word
-    text = text.replace(u'\u200b','')  # remove zero width space unicode charater
+    text = text.replace('-', "")  # remove hyphen in word
+    text = text.replace(u'\u200b', '')  # remove zero width space unicode charater
     tokens = word_tokenize(text)
     tokenSent = sent_tokenize(text, language='english')
     tokenSent = [re.sub(re.compile(r"\s+"), " ", s) for s in tokenSent]  # 对每段内再去除空格
@@ -57,7 +49,7 @@ wordTokens = list(dict.fromkeys(wordTokens))  # 去重
 wordTokens = [x for x in wordTokens if WordNetLemmatizer().lemmatize(x) not in list(set_of_common_words)]
 # 找出含有这个单词的完整句子, 生成例句，多个空格则只保留一个空格。
 exampleSent = [[' '.join(s.split()) for s in tokenSent if w in s] for w in wordTokens]
-exampleSent = [s[0] if len(s)>0 else s for s in exampleSent ]
+exampleSent = [s[0] if len(s) > 0 else s for s in exampleSent]
 
 """翻译"""
 # 单词变成原型后翻译
@@ -68,10 +60,12 @@ wordRoot = [x for x in wordRoot if x not in list(set_of_common_words)]
 # EN-CN 使用 ECDICT
 dictCsvTrans = DictCsv("ecdict.csv").query_batch(wordRoot)
 
-'''制作并导出卡片'''
+'''制作并导出卡片， 这里出现异常符号，无法去除'''
 transWord = [
-    {v for k, v in d.items() if k in ['word', 'phonetic', 'translation', 'definition']} if d is not None else None
+    {k: v for k, v in d.items() if
+     k in ['word', 'phonetic', 'translation', 'definition', 'frq', 'dnc']} if d is not None else None
     for d in dictCsvTrans]
+
 # 导出至TXT文件
 output = pd.DataFrame(
     {'word': wordRoot,
@@ -83,14 +77,4 @@ output.drop_duplicates(subset=['word'], keep='last', inplace=True)
 # 导出至TXT
 output.to_csv(os.getcwd() + r'\anki.txt', header=False, index=False, sep='\t', mode='w')
 
-# 剔除原型重复的单词
-
-# 导出ANKI 卡片，符合ANKI特殊格式的txt文件即可
-
-#
-# pydict().meaning('ridukulus')
-
-# # 再找出高频词
-# freqs = nltk.FreqDist(wordTokens)
-# blah_list = [(k, v) for k, v in freqs.items()]
-# print(blah_list)
+# 资源 https://github.com/dyeeee/English-Chinese-Dictionary
